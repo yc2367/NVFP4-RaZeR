@@ -1,13 +1,15 @@
 # RaZeR: Pushing the Limits of NVFP4 Quantization with Redundant Zero Remapping
 
-<h5 align="center">
+<h5>
   
 [![arXiv](https://img.shields.io/badge/RaZeR-2308.13137-b31b1b.svg?logo=arXiv)](https://arxiv.org/html/2501.04052v2)
  <br>
  
 </h5>
 
-![razer](imgs/razer.png)
+<p align="center">
+  <img src="imgs/razer.png" alt="razer" width="700"/>
+</p>
 
 RaZeR extends the standard NVFP4 format by remapping the redundant FP4 zero as an additional, special quantization value. By carefully selecting the set of allowed special values, each NVFP4 block can be quantized with the basic FP4 values and a useful special value, thereby reducing per-block quantization error. Moreover, RaZeR exploits redundancy in the NVFP4 block scale to encode the metadata for storing and indexing special values. Consequantly, RaZeR maintains the same memory footprint as NVFP4 while achieving much higher accuracy.
 
@@ -63,8 +65,8 @@ Some python command parameters for evaluation are described below.
 |  **nf4**                  | The 4-bit NormalFloat format in [QLoRA](https://arxiv.org/abs/2305.14314) |
 |  **nvfp4**                | NVIDIA [NVFP4](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/) |
 |  **nvfp4_4over6**         | The [4over6](https://arxiv.org/abs/2512.02010) format on top of NVFP4 |
-|  **nvfp4_razer_e4m3**     | The RaZeR format with E4M3 block scale and 2 special values $\pm5$ for activation quantization. |
-|  **nvfp4_razer_e3m3**     | The RaZeR format with E3M3 block scale and 4 special values $\pm5$ for weight quantization. |
+|  **nvfp4_razer_e3m3**     | The RaZeR format with E3M3 block scale and 4 special values for weight quantization |
+|  **nvfp4_razer_e4m3**     | The RaZeR format with E4M3 block scale and 2 special values for activation quantization |
 
 
 
