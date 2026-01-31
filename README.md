@@ -8,7 +8,7 @@
 </h5>
 
 <p align="center">
-  <img src="imgs/razer.png" alt="razer" width="700"/>
+  <img src="imgs/razer.png" alt="razer" width="600"/>
 </p>
 
 RaZeR extends the standard NVFP4 format by remapping the redundant FP4 zero as an additional, special quantization value. By carefully selecting the set of allowed special values, each NVFP4 block can be quantized with the basic FP4 values and a useful special value, thereby reducing per-block quantization error. Moreover, RaZeR exploits redundancy in the NVFP4 block scale to encode the metadata for storing and indexing special values. Consequantly, RaZeR maintains the same memory footprint as NVFP4 while achieving much higher accuracy.
