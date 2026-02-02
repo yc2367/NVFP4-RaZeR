@@ -63,25 +63,18 @@ def eval_ppl(model, tokenizer, args):
             model_family = '_'.join(model_net.lower().split('-')[:-1])
             model.seq_len = args.seq_len
 
-            cache_testloader = f'/home/yc2367/llm/P2-LLM/data_cache/testloader_{model_family}_c4_{args.seq_len}.cache'
-            os.makedirs(os.path.dirname(cache_testloader), exist_ok=True)
-            if os.path.exists(cache_testloader):
-                testenc = torch.load(cache_testloader)
-                print(f"load calibration from {cache_testloader}")
-            else:
-                valenc = []
-                testenc = load_dataset("allenai/c4", data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split="validation")
-                for _ in range(256): # run 256 samples
-                    while True:
-                        i = random.randint(0, len(testenc) - 1)
-                        tmp = tokenizer(testenc[i]['text'], return_tensors='pt')
-                        if tmp.input_ids.shape[1] > (model.seq_len+1):
-                            break
-                    i = random.randint(0, tmp.input_ids.shape[1] - model.seq_len - 1)
-                    j = i + model.seq_len
-                    valenc.append(tmp.input_ids[:, i:j])
-                testenc = torch.hstack(valenc)
-                torch.save(testenc, cache_testloader)
+            valenc = []
+            testenc = load_dataset("allenai/c4", data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split="validation")
+            for _ in range(256): # run 256 samples
+                while True:
+                    i = random.randint(0, len(testenc) - 1)
+                    tmp = tokenizer(testenc[i]['text'], return_tensors='pt')
+                    if tmp.input_ids.shape[1] > (model.seq_len+1):
+                        break
+                i = random.randint(0, tmp.input_ids.shape[1] - model.seq_len - 1)
+                j = i + model.seq_len
+                valenc.append(tmp.input_ids[:, i:j])
+            testenc = torch.hstack(valenc)
             
             nsamples = testenc.numel() // model.seq_len
             loss_fct = nn.CrossEntropyLoss()
