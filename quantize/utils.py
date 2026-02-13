@@ -1,17 +1,9 @@
 import torch
 
 
-def get_scale_min_max(exp_bits, man_bits):
-    exp_bias  = 2**(exp_bits-1) - 1
-    exp_max   = 2**(exp_bits-1)
-    exp_min   = -2**(exp_bits-1) + 2
-    qmax      = 2**exp_max * (2 - 2**(-man_bits+1))
-    qmin      = 2**(exp_min - man_bits)
-    return qmax, qmin
-
-
-def quant_scale(scale_fp, exp_bits, man_bits):
-    exp_min    = -2**(exp_bits-1) + 2
+def quant_scale(scale_fp, exp_bits, man_bits, exp_min=None):
+    if exp_min is None:
+        exp_min = -2**(exp_bits-1) + 2
     scale_sign = scale_fp.sign()
     assert (scale_sign == -1).any().logical_not(), "The scaling factor CANNOT be negative. Something is WRONG..."
     scale_exp  = (

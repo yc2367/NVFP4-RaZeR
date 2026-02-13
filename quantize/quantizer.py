@@ -2,7 +2,7 @@ import torch
 from typing import Optional
 from functools import partial
 from .quant_config import QuantConfig
-from .utils import get_scale_min_max, quant_scale
+from .utils import quant_scale
 
 
 def quant_nvfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
@@ -354,10 +354,10 @@ def quant_hf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
 
     # Block Scale
     scale_64 = max_64 / 7
-    scale_64_max, scale_64_min = get_scale_min_max(exp_bits=6, man_bits=2)
+    scale_64_max, scale_64_min = 2**15 * 1.5, 2**(-48)
     scale_64 = quant_scale(
         scale_64.clamp(min=scale_64_min, max=scale_64_max),
-        exp_bits=6, man_bits=2
+        exp_bits=6, man_bits=2, exp_min=-48
     )
     scale_8  = torch.where(
         max_8 / scale_64 >= 4, 
