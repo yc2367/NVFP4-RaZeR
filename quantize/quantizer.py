@@ -351,6 +351,7 @@ def quant_hf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     # Block Maximum
     max_4  = w_fp_new.abs().amax(dim=-1, keepdim=True)
     max_8  = max_4.reshape(-1, 2).amax(dim=-1, keepdim=True).repeat(1, 2).view(-1, 1)
+    max_64 = max_4.reshape(-1, 16).amax(dim=-1, keepdim=True).repeat(1, 16).view(-1, 1)
 
     # Block Scale
     scale_64 = max_64 / 7
