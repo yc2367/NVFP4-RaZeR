@@ -1,7 +1,8 @@
 import torch
 from typing import Optional
-from .quant_config import QuantConfig
 from functools import partial
+from .quant_config import QuantConfig
+from .utils import get_scale_min_max, quant_scale
 
 
 def quant_nvfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
@@ -91,7 +92,7 @@ def quant_nf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
 
 def quant_nvfp4_4over6(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
-        NVFP4 quantization. Following the implementation of FourOverSix (https://arxiv.org/pdf/2512.02010)
+        NVFP4 4over6 quantization. Following the implementation of FourOverSix (https://arxiv.org/pdf/2512.02010)
     """
     quant_value = sorted([0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0])
     mid_value = [(quant_value[i] + quant_value[i + 1]) / 2 for i in range(len(quant_value) - 1)]
@@ -225,7 +226,7 @@ def quant_nvfp4_razer_e3m3(w_fp, n_bits: int=4, groupsize: Optional[int]=None, o
 @torch.no_grad()
 def quant_nvfp4_razer_e4m3(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
-        NVFP4-RaZeR-Extended quantization.
+        NVFP4-RaZeR quantization.
     """
 
     inlier          = 5.0
@@ -340,6 +341,42 @@ def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
 
+def quant_hf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+    """
+        HiFloat4 quantization. Following the implementation https://arxiv.org/pdf/2602.11287
+    """
+    orig_shape = w_fp.shape 
+    w_fp_new   = w_fp.reshape(-1, 4)
+
+    # Block Maximum
+    max_4  = w_fp_new.abs().amax(dim=-1, keepdim=True)
+    max_8  = max_4.reshape(-1, 2).amax(dim=-1, keepdim=True).repeat(1, 2).view(-1, 1)
+
+    # Block Scale
+    scale_64 = max_64 / 7
+    scale_64_max, scale_64_min = get_scale_min_max(exp_bits=6, man_bits=2)
+    scale_64 = quant_scale(
+        scale_64.clamp(min=scale_64_min, max=scale_64_max),
+        exp_bits=6, man_bits=2
+    )
+    scale_8  = torch.where(
+        max_8 / scale_64 >= 4, 
+        2, 1
+    )
+    scale_4  = torch.where(
+        max_64 / (scale_64 * scale_8) >= 2, 
+        2, 1
+    )
+
+    # Block Quantized Element
+    w_scaled = w_fp_new / (scale_64 * scale_8 * scale_4)
+    # print(w_scaled.max())
+    w_q      = (w_scaled * 4).clamp(min=-7, max=7).round() / 4
+    w_dq     = w_q * (scale_64 * scale_8 * scale_4)
+
+    return w_dq.view(orig_shape)
+
+
 def quant_weight(model, quant_config: QuantConfig):
     n_bits       = quant_config.w_bits
     w_groupsize  = quant_config.w_groupsize
@@ -357,6 +394,8 @@ def quant_weight(model, quant_config: QuantConfig):
         quant_func  = quant_mxfp4
     elif (w_dtype == "nf4"):
         quant_func  = quant_nf4  
+    elif (w_dtype == "hf4"):
+        quant_func  = quant_hf4
     elif (w_dtype == "nvfp4"):
         quant_func  = quant_nvfp4
     elif (w_dtype == "nvfp4_4over6"):
@@ -388,6 +427,8 @@ def quant_act(act, quant_config: QuantConfig):
         quant_func  = quant_mxfp4
     elif (a_dtype == "nf4"):
         quant_func  = quant_nf4
+    elif (a_dtype == "hf4"):
+        quant_func  = quant_hf4
     elif (a_dtype == "nvfp4"):
         quant_func  = quant_nvfp4
     elif (a_dtype == "nvfp4_4over6"):
