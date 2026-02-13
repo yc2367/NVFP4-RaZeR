@@ -56,12 +56,3 @@ do
             --batch_size ${batch_size}
     done
 done
-
-
-model_name="llama-3.2-3b-ins-mr-gptq"
-python ${HOME_DIR}/run_llama_cot.py --model_name ${model_name} \
-    --tasks ${task_list} \
-    --output_dir ${OUTPUT_DIR} \
-    --w_bits 16 \
-    --a_bits ${a_bits} --a_groupsize ${a_groupsize} --a_dtype "nvfp4" \
-    --batch_size ${batch_size}

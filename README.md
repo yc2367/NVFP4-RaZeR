@@ -2,7 +2,7 @@
 
 <h5>
   
-[![arXiv](https://img.shields.io/badge/RaZeR-2308.13137-b31b1b.svg?logo=arXiv)](https://arxiv.org/html/2501.04052v2)
+[![arXiv](https://img.shields.io/badge/RaZeR-2501.04052-b31b1b.svg?logo=arXiv)](https://arxiv.org/html/2501.04052)
  <br>
  
 </h5>
@@ -21,7 +21,7 @@ RaZeR extends the standard NVFP4 format by remapping the redundant FP4 zero as a
 ## Getting Started
 1. Clone the GitHub repository and set up conda environment.
 ```
-git clone https://github.com/yc2367/NVFP4-RaZeR/
+git clone https://github.com/abdelfattah-lab/NVFP4-RaZeR
 cd NVFP4-RaZeR
 conda env create -f env.yml
 conda activate razer
@@ -44,7 +44,7 @@ Some python command parameters for evaluation are described below.
 - `--w_bits`: Weight precision.
 - `--w_groupsize`: Weight group size.
 - `--w_dtype`: Weight data format, e.g., "nvfp4".
-- `--w_outlier`: The second special value pair for RaZeR weights. E.g., if set to `8.0`, then the four special values for RaZeR weights will be {$\pm5, \pm8$}. Refer to Appendix B.2 of our paper for more details.
+- `--w_outlier`: The second special value pair for RaZeR weights. E.g., if set to `8.0`, then the four special values for RaZeR weights will be {±5, ±8}. Refer to Appendix B.2 of our paper for more details.
 - `--a_bits`: Activation precision.
 - `--a_groupsize`: Activation group size.
 - `--a_dtype`: Activation data format, e.g., "nvfp4".
