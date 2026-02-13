@@ -64,7 +64,8 @@ Some python command parameters for evaluation are described below.
 |  **fp16**                 | The baseline FP16 without quantization   |
 |  **mxfp4**                | The 4-bit [Microscaling FP4](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) |
 |  **nf4**                  | The 4-bit NormalFloat format in [QLoRA](https://arxiv.org/abs/2305.14314) |
-|  **nvfp4**                | NVIDIA [NVFP4](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/) |
+|  **hf4**                  | The [HiFloat4](https://arxiv.org/abs/2305.14314) format developed by Huawei  |
+|  **nvfp4**                | The [NVFP4](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/) format developed by NVIDIA |
 |  **nvfp4_4over6**         | The [4over6](https://arxiv.org/abs/2512.02010) format on top of NVFP4 |
 |  **nvfp4_razer_e3m3**     | The RaZeR format with E3M3 block scale and 4 special values for weight quantization |
 |  **nvfp4_razer_e4m3**     | The RaZeR format with E4M3 block scale and 2 special values for activation quantization |
