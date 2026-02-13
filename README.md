@@ -15,6 +15,7 @@ RaZeR extends the standard NVFP4 format by remapping the redundant FP4 zero as a
 
 
 ## News
+- [2026/02] 🔥 We have added fake quantizer to simulate the [HiFloat4](https://arxiv.org/abs/2602.11287) format.
 - [2026/01] 🔥 [RaZeR](https://arxiv.org/abs/2501.04052v2) is available on arXiv.
 
 
