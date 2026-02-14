@@ -62,7 +62,7 @@ Some python command parameters for evaluation are described below.
 |  **Data Format**              | Definition                                     |
 | --------------------------- | ---------------------------------------------- |
 |  **fp16**                 | The baseline FP16 without quantization   |
-|  **mxfp4**                | The 4-bit [Microscaling FP4](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) |
+|  **mxfp4**                | The [Microscaling FP4](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) format developed by OCP |
 |  **nf4**                  | The 4-bit NormalFloat format in [QLoRA](https://arxiv.org/abs/2305.14314) |
 |  **hf4**                  | The [HiFloat4](https://arxiv.org/abs/2602.11287) format developed by Huawei  |
 |  **nvfp4**                | The [NVFP4](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/) format developed by NVIDIA |
