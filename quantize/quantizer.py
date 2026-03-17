@@ -341,6 +341,52 @@ def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
 
+@torch.no_grad()
+def quant_mxfp4_clip(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+    """
+        MXFP4 quantization with mantissa clipping.
+    """
+    FP32_EXPONENT_BIAS = 127
+    FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
+
+    FP4_EXP_BITS = 2
+    FP4_MAN_BITS = 1
+    FP4_EMAX     = 2**(FP4_EXP_BITS - 1)
+    FP4_MAX_NORM = 2**FP4_EMAX * (2**(FP4_MAN_BITS+1) - 1) / 2**FP4_MAN_BITS
+
+    orig_shape = w_fp.shape 
+    w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
+    
+    shared_exp, _ = torch.max(w_fp_new.abs(), dim=-1, keepdim=True)
+    shared_exp = torch.floor(
+        torch.log2(
+            shared_exp + FP32_MIN_NORMAL * (shared_exp == 0).type(shared_exp.dtype)
+        )
+    )
+
+    # Offset the max exponent by the largest representable exponent
+    # in the element data format
+    scale_emax = 2**7 - 1
+    shared_exp = (shared_exp - FP4_EMAX).clamp(min=-scale_emax+1, max=scale_emax)
+
+    w_q = w_fp_new / (2**shared_exp) * 3/4
+    private_exp = torch.floor(
+        torch.log2(
+            torch.abs(w_q) + (w_q == 0).type(w_q.dtype)
+        )
+    )
+    min_exp = -(2**(FP4_EXP_BITS-1)) + 2
+    private_exp = private_exp.clip(min=min_exp)
+    
+    w_q = w_q / (2**private_exp) * (2**FP4_MAN_BITS)
+    w_q = torch.sign(w_q) * torch.floor(torch.abs(w_q) + 0.5)
+    w_q = w_q * (2**private_exp) / (2**FP4_MAN_BITS) * 4/3
+
+    w_dq = w_q * (2**shared_exp)
+
+    return w_dq.view(orig_shape).to(torch.bfloat16)
+
+
 def quant_hf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
         HiFloat4 quantization. Following the implementation https://arxiv.org/pdf/2602.11287
@@ -393,6 +439,8 @@ def quant_weight(model, quant_config: QuantConfig):
     quant_func  = None
     if (w_dtype == "mxfp4"):
         quant_func  = quant_mxfp4
+    elif (w_dtype == "mxfp4_clip"):
+        quant_func  = quant_mxfp4_clip
     elif (w_dtype == "nf4"):
         quant_func  = quant_nf4  
     elif (w_dtype == "hf4"):
@@ -426,6 +474,8 @@ def quant_act(act, quant_config: QuantConfig):
 
     if (a_dtype == "mxfp4"):
         quant_func  = quant_mxfp4
+    elif (a_dtype == "mxfp4_clip"):
+        quant_func  = quant_mxfp4_clip
     elif (a_dtype == "nf4"):
         quant_func  = quant_nf4
     elif (a_dtype == "hf4"):
