@@ -58,6 +58,16 @@ Some python command parameters for evaluation are described below.
 - `--v_dtype`: Value data format, e.g., "nvfp4".
 
 
+## Inference Artifact
+The public inference-focused artifact lives in [`inference/`](/data/syphon/NVFP4-RaZeR/inference).
+
+That subtree contains:
+- the released weight-only kernel extensions in [`inference/kernel_extensions/`](/data/syphon/NVFP4-RaZeR/inference/kernel_extensions)
+- the trimmed `gpt-fast` integration in [`inference/gpt_fast_integration/`](/data/syphon/NVFP4-RaZeR/inference/gpt_fast_integration)
+- the W4A4 appendix implementations in [`inference/w4a4/`](/data/syphon/NVFP4-RaZeR/inference/w4a4)
+
+See [`inference/README.md`](/data/syphon/NVFP4-RaZeR/inference/README.md) for the artifact layout and [`inference/gpt_fast_integration/README.md`](/data/syphon/NVFP4-RaZeR/inference/gpt_fast_integration/README.md) for throughput-oriented quantization and generation instructions.
+
 ## Supported Data Formats
 |  **Data Format**              | Definition                                     |
 | --------------------------- | ---------------------------------------------- |
