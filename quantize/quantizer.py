@@ -295,22 +295,22 @@ def quant_nvfp4_razer_e4m3(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
 
 
 @torch.no_grad()
-def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+def quant_mxfp4_orig(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
-        MXFP4 quantization.
+        Original MXFP4 quantization.
     """
     FP32_EXPONENT_BIAS = 127
     FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
 
     FP4_EXP_BITS = 2
     FP4_MAN_BITS = 1
-    FP4_EMAX     = 2**(FP4_EXP_BITS - 1)
-    FP4_MAX_NORM = 2**FP4_EMAX * (2**(FP4_MAN_BITS+1) - 1) / 2**FP4_MAN_BITS
+    FP4_EMAX     = 2
+    FP4_MAX      = 6.0
 
     orig_shape = w_fp.shape 
     w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
     
-    shared_exp, _ = torch.max(w_fp_new.abs(), dim=-1, keepdim=True)
+    shared_exp = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
     shared_exp = torch.floor(
         torch.log2(
             shared_exp + FP32_MIN_NORMAL * (shared_exp == 0).type(shared_exp.dtype)
@@ -321,21 +321,64 @@ def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     # in the element data format
     scale_emax = 2**7 - 1
     shared_exp = (shared_exp - FP4_EMAX).clamp(min=-scale_emax+1, max=scale_emax)
+    w_s        = w_fp_new / (2**shared_exp)
 
-    w_q = w_fp_new / (2**shared_exp)
+    # FP4 Quantization
     private_exp = torch.floor(
         torch.log2(
-            torch.abs(w_q) + (w_q == 0).type(w_q.dtype)
+            torch.abs(w_s) + (w_s == 0).type(w_s.dtype)
         )
     )
     min_exp = -(2**(FP4_EXP_BITS-1)) + 2
     private_exp = private_exp.clip(min=min_exp)
-    
-    w_q = w_q / (2**private_exp) * (2**FP4_MAN_BITS)
-    w_q = torch.sign(w_q) * torch.floor(torch.abs(w_q) + 0.5)
-    w_q = w_q * (2**private_exp) / (2**FP4_MAN_BITS)
-    w_q = torch.clamp(w_q, min=-FP4_MAX_NORM, max=FP4_MAX_NORM)
+    w_m = w_s / (2**private_exp) * (2**FP4_MAN_BITS)
+    w_m = torch.sign(w_m) * torch.floor(torch.abs(w_m) + 0.5)
+    w_q = w_m * (2**private_exp) / (2**FP4_MAN_BITS)
+    w_q = torch.clamp(w_q, min=-FP4_MAX, max=FP4_MAX)
 
+    # De-Quantization
+    w_dq = w_q * (2**shared_exp)
+
+    return w_dq.view(orig_shape).to(torch.bfloat16)
+
+
+@torch.no_grad()
+def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+    """
+        MXFP4 quantization.
+    """
+    FP32_EXPONENT_BIAS = 127
+    FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
+
+    FP4_EXP_BITS = 2
+    FP4_MAN_BITS = 1
+    FP4_EMAX     = 2
+    FP4_MAX      = 6.0
+
+    orig_shape = w_fp.shape 
+    w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
+    
+    scale_fp32 = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True) / FP4_MAX
+    shared_exp = torch.ceil(
+        torch.log2(
+            scale_fp32 + FP32_MIN_NORMAL * (scale_fp32 == 0).type(scale_fp32.dtype)
+        )
+    ).clamp(min=-FP32_EXPONENT_BIAS+1, max=FP32_EXPONENT_BIAS)
+    w_s        = w_fp_new / (2**shared_exp) 
+    
+    # FP4 Quantization
+    private_exp = torch.floor(
+        torch.log2(
+            torch.abs(w_s) + (w_s == 0).type(w_s.dtype)
+        )
+    )
+    min_exp = -(2**(FP4_EXP_BITS-1)) + 2
+    private_exp = private_exp.clip(min=min_exp)
+    w_m = w_s / (2**private_exp) * (2**FP4_MAN_BITS)
+    w_m = torch.sign(w_m) * torch.floor(torch.abs(w_m) + 0.5)
+    w_q = w_m * (2**private_exp) / (2**FP4_MAN_BITS)
+
+    # De-Quantization
     w_dq = w_q * (2**shared_exp)
 
     return w_dq.view(orig_shape).to(torch.bfloat16)
@@ -349,15 +392,13 @@ def quant_mxfp4_clip(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     FP32_EXPONENT_BIAS = 127
     FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
 
-    FP4_EXP_BITS = 2
-    FP4_MAN_BITS = 1
-    FP4_EMAX     = 2**(FP4_EXP_BITS - 1)
+    FP4_EXP_BITS, FP4_MAN_BITS, FP4_EMAX = 2, 1, 2
     FP4_MAX_NORM = 2**FP4_EMAX * (2**(FP4_MAN_BITS+1) - 1) / 2**FP4_MAN_BITS
 
     orig_shape = w_fp.shape 
     w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
     
-    shared_exp, _ = torch.max(w_fp_new.abs(), dim=-1, keepdim=True)
+    shared_exp = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
     shared_exp = torch.floor(
         torch.log2(
             shared_exp + FP32_MIN_NORMAL * (shared_exp == 0).type(shared_exp.dtype)
@@ -378,11 +419,10 @@ def quant_mxfp4_clip(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     min_exp = -(2**(FP4_EXP_BITS-1)) + 2
     private_exp = private_exp.clip(min=min_exp)
     
-    w_q = w_q / (2**private_exp) * (2**FP4_MAN_BITS)
-    w_q = torch.sign(w_q) * torch.floor(torch.abs(w_q) + 0.5)
-    w_q = w_q * (2**private_exp) / (2**FP4_MAN_BITS) * 4/3
-
-    w_dq = w_q * (2**shared_exp)
+    w_q  = w_q / (2**private_exp) * (2**FP4_MAN_BITS)
+    w_q  = torch.sign(w_q) * torch.floor(torch.abs(w_q) + 0.5)
+    w_q  = w_q * (2**private_exp) / (2**FP4_MAN_BITS)
+    w_dq = w_q * (2**shared_exp) * 4/3
 
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
