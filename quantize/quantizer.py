@@ -5,6 +5,7 @@ from .quant_config import QuantConfig
 from .utils import quant_scale
 
 
+@torch.no_grad()
 def quant_nvfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
         NVFP4 quantization. Following the implementation of FourOverSix (https://arxiv.org/pdf/2512.02010)
@@ -90,6 +91,7 @@ def quant_nf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
 
+@torch.no_grad()
 def quant_nvfp4_4over6(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
         NVFP4 4over6 quantization. Following the implementation of FourOverSix (https://arxiv.org/pdf/2512.02010)
@@ -160,7 +162,7 @@ def quant_nvfp4_4over6(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
 
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
-
+@torch.no_grad()
 def quant_nvfp4_razer_e3m3(w_fp, n_bits: int=4, groupsize: Optional[int]=None, outlier: float=8.0):
     """
         NVFP4-RaZeR quantization.
