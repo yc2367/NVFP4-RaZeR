@@ -1,0 +1,13 @@
+This repository includes material adapted from third-party open-source projects.
+
+1. Marlin
+   Source: https://github.com/IST-DASLab/marlin
+   License: Apache License 2.0
+   Relevant files include:
+   - marlin_fp4/marlin_fp4_cuda.cpp
+   - marlin_fp4/marlin_fp4_cuda_kernel.cu
+   - parts of the Python packing/layout logic in marlin_fp4/__init__.py
+
+
+The repository-level license is Apache License 2.0. Third-party components remain
+subject to their respective upstream licenses and notices.
