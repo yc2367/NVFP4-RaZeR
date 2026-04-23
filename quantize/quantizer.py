@@ -90,9 +90,9 @@ def quant_hf4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
 
 
 @torch.no_grad()
-def quant_mxfp4_orig(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+def quant_mxfp4_naive(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
-        Original MXFP4 quantization.
+        Original NAIVE MXFP4 quantization. Reference: https://github.com/microsoft/microxcaling
     """
     FP32_EXPONENT_BIAS = 127
     FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
@@ -679,8 +679,8 @@ def quant_weight(model, quant_config: QuantConfig):
 
     n_bits      = 4
     quant_func  = None
-    if (w_dtype == "mxfp4_orig"):
-        quant_func = quant_mxfp4_orig
+    if (w_dtype == "mxfp4_naive"):
+        quant_func = quant_mxfp4_naive
     elif (w_dtype == "mxfp4"):
         quant_func  = quant_mxfp4
     elif (w_dtype == "mxif4"):
@@ -724,8 +724,8 @@ def quant_act(act, quant_config: QuantConfig):
 
     if (a_dtype == "mxfp4"):
         quant_func = quant_mxfp4
-    elif (a_dtype == "mxfp4_orig"):
-        quant_func = quant_mxfp4_orig
+    elif (a_dtype == "mxfp4_naive"):
+        quant_func = quant_mxfp4_naive
     elif (a_dtype == "mxif4"):
         quant_func = quant_mxif4
     elif (a_dtype == "mxfp4_razer"):
