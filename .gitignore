@@ -51,4 +51,5 @@ venv.bak/
 
 
 # USER Defined
-results/
+results*/
+scripts*/
