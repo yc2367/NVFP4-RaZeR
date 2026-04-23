@@ -59,14 +59,14 @@ Some python command parameters for evaluation are described below.
 
 
 ## Inference Artifact
-The public inference-focused artifact lives in [`inference/`](/data/syphon/NVFP4-RaZeR/inference).
+The public inference-focused artifact lives in [`inference/`](inference/).
 
 That subtree contains:
-- the released weight-only kernel extensions in [`inference/kernel_extensions/`](/data/syphon/NVFP4-RaZeR/inference/kernel_extensions)
-- the trimmed `gpt-fast` integration in [`inference/gpt_fast_integration/`](/data/syphon/NVFP4-RaZeR/inference/gpt_fast_integration)
-- the W4A4 appendix implementations in [`inference/w4a4/`](/data/syphon/NVFP4-RaZeR/inference/w4a4)
+- the released weight-only kernel extensions in [`inference/kernel_extensions/`](inference/kernel_extensions/)
+- the trimmed `gpt-fast` integration in [`inference/gpt_fast_integration/`](inference/gpt_fast_integration/)
+- the W4A4 appendix implementations in [`inference/w4a4/`](inference/w4a4/)
 
-See [`inference/README.md`](/data/syphon/NVFP4-RaZeR/inference/README.md) for the artifact layout and [`inference/gpt_fast_integration/README.md`](/data/syphon/NVFP4-RaZeR/inference/gpt_fast_integration/README.md) for throughput-oriented quantization and generation instructions.
+See [`inference/README.md`](inference/README.md) for the artifact layout and [`inference/gpt_fast_integration/README.md`](inference/gpt_fast_integration/README.md) for throughput-oriented quantization and generation instructions.
 
 ## Supported Data Formats
 |  **Data Format**              | Definition                                     |

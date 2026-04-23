@@ -4,7 +4,7 @@ This directory contains the trimmed `gpt-fast` integration layer used by the pub
 
 ## Credit
 
-This subtree is adapted from Meta's [`gpt-fast`](https://github.com/meta-pytorch/gpt-fast). The original project provides the base model conversion flow, core model definition, and the overall generation structure that this artifact builds on. The upstream license is preserved in [../third_party_licenses/GPT_FAST_LICENSE](/data/syphon/NVFP4-RaZeR/inference/third_party_licenses/GPT_FAST_LICENSE).
+This subtree is adapted from Meta's [`gpt-fast`](https://github.com/meta-pytorch/gpt-fast). The original project provides the base model conversion flow, core model definition, and the overall generation structure that this artifact builds on. The upstream license is preserved in [`../third_party_licenses/GPT_FAST_LICENSE`](../third_party_licenses/GPT_FAST_LICENSE).
 
 ## Scope
 

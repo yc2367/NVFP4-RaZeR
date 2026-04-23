@@ -1,0 +1,15 @@
+This repository contains software derived from the Marlin project:
+
+  Marlin
+  https://github.com/IST-DASLab/marlin
+
+Marlin is licensed under the Apache License, Version 2.0.
+
+This repository includes modifications for the RAZER FP4 weight-only linear
+kernel implementation and accompanying research release.
+
+Upstream attribution:
+  Copyright (C) 2024 Elias Frantar
+
+Additional modifications in this repository:
+  Copyright (C) 2026 The contributors to this repository
