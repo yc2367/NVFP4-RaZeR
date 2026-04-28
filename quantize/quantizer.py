@@ -103,34 +103,33 @@ def quant_mxfp4_naive(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     FP4_MAX      = 6.0
 
     orig_shape = w_fp.shape 
-    w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
+    w_fp_new   = w_fp.reshape(-1, groupsize).to(torch.float32)
     
-    shared_exp = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
-    shared_exp = torch.floor(
+    block_exp  = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
+    block_exp  = torch.floor(
         torch.log2(
-            shared_exp + FP32_MIN_NORMAL * (shared_exp == 0).type(shared_exp.dtype)
+            block_exp + FP32_MIN_NORMAL * (block_exp == 0).type(block_exp.dtype)
         )
     )
 
     # Offset the max exponent by the largest representable exponent
     # in the element data format
-    shared_exp = (shared_exp - FP4_EMAX).clamp(min=-FP32_EXPONENT_BIAS+1, max=FP32_EXPONENT_BIAS)
-    w_s        = w_fp_new / (2**shared_exp)
+    block_exp  = (block_exp - FP4_EMAX).clamp(min=-FP32_EXPONENT_BIAS+1, max=FP32_EXPONENT_BIAS)
+    w_s        = w_fp_new / (2**block_exp)
 
     # FP4 Quantization
     private_exp = torch.floor(
         torch.log2(
             torch.abs(w_s) + (w_s == 0).type(w_s.dtype)
         )
-    )
-    private_exp = private_exp.clamp(min=0)
+    ).clamp(min=0)
     w_m         = w_s / (2**private_exp) * (2**FP4_MAN_BITS)
     w_m         = torch.sign(w_m) * torch.floor(torch.abs(w_m) + 0.5)
     w_q         = w_m * (2**private_exp) / (2**FP4_MAN_BITS)
     w_q         = torch.clamp(w_q, min=-FP4_MAX, max=FP4_MAX)
 
     # De-Quantization
-    w_dq        = w_q * (2**shared_exp)
+    w_dq        = w_q * (2**block_exp)
 
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
@@ -142,7 +141,6 @@ def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     """
     FP32_EXPONENT_BIAS = 127
     FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
-
     FP4_MAN_BITS = 1
     FP4_MAX      = 6.0
 
@@ -150,26 +148,77 @@ def quant_mxfp4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
     w_fp_new = w_fp.reshape(-1, groupsize).to(torch.float32)
     
     scale_fp32 = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True) / FP4_MAX
-    shared_exp = torch.ceil(
+    block_exp  = torch.ceil(
         torch.log2(
             scale_fp32 + FP32_MIN_NORMAL * (scale_fp32 == 0).type(scale_fp32.dtype)
         )
     ).clamp(min=-FP32_EXPONENT_BIAS+1, max=FP32_EXPONENT_BIAS)
-    w_s        = w_fp_new / (2**shared_exp) 
+    w_s        = w_fp_new / (2**block_exp) 
     
     # FP4 Quantization
     private_exp = torch.floor(
         torch.log2(
             torch.abs(w_s) + (w_s == 0).type(w_s.dtype)
         )
-    )
-    private_exp = private_exp.clamp(min=0)
+    ).clamp(min=0)
     w_m = w_s / (2**private_exp) * (2**FP4_MAN_BITS)
     w_m = torch.sign(w_m) * torch.floor(torch.abs(w_m) + 0.5)
     w_q = w_m * (2**private_exp) / (2**FP4_MAN_BITS)
 
     # De-Quantization
-    w_dq = w_q * (2**shared_exp)
+    w_dq = w_q * (2**block_exp)
+
+    return w_dq.view(orig_shape).to(torch.bfloat16)
+
+
+@torch.no_grad()
+def quant_mxfp4_meta(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
+    """
+        Meta's MXFP4 quantization recipe: https://arxiv.org/abs/2603.08713
+    """
+    FP32_EXPONENT_BIAS = 127
+    FP32_MIN_NORMAL = 2 ** (-FP32_EXPONENT_BIAS + 1)
+    FP4_MAN_BITS = 1
+    FP4_MAX      = 6.0
+
+    # Get the per-1x128-tile maximum and E0M8 scale factor
+    orig_shape  = w_fp.shape 
+    w_fp_new    = w_fp.reshape(-1, 128).to(torch.float32)
+    tile_max    = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
+    tile_scale  = (
+        (tile_max / 1.5).view(torch.int32).bitwise_and(0x007f8000)
+    )
+    tile_scale  = tile_scale.bitwise_or(0x3f800000).view(torch.float32) 
+    w_fp_new    = (w_fp_new / tile_scale).view(-1, 16)
+
+    # Get the per-1x16-block maximum and E8M0 scale factor
+    block_max   = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True)
+    scale_fp32  = block_max / FP4_MAX
+    block_exp   = torch.ceil(
+        torch.log2(
+            scale_fp32 + FP32_MIN_NORMAL * (scale_fp32 == 0).type(scale_fp32.dtype)
+        )
+    ).clamp(min=-FP32_EXPONENT_BIAS+1, max=FP32_EXPONENT_BIAS)
+
+    # Overflow-Aware Scaling (OAS): If the scaled block maximum is smaller than 3.5, then upscale the whole block by 2
+    block_max_s = block_max / 2**block_exp
+    upscale     = block_max_s.lt(3.5).squeeze()
+    block_exp[upscale] -= 1
+    block_scale = 2**block_exp
+
+    # FP4 Quantization
+    w_s         = w_fp_new / block_scale
+    private_exp = torch.floor(
+        torch.log2(
+            torch.abs(w_s) + (w_s == 0).type(w_s.dtype)
+        )
+    ).clamp(min=0)
+    w_m = w_s / (2**private_exp) * (2**FP4_MAN_BITS)
+    w_m = torch.sign(w_m) * torch.floor(torch.abs(w_m) + 0.5)
+    w_q = w_m * (2**private_exp) / (2**FP4_MAN_BITS)
+
+    # Dequantization
+    w_dq = (w_q * block_scale).view(-1, 128) * tile_scale
 
     return w_dq.view(orig_shape).to(torch.bfloat16)
 
@@ -263,12 +312,12 @@ def quant_mxfp4_razer(w_fp, n_bits: int=4, groupsize: Optional[int]=None, is_act
     w_fp_new   = w_fp.reshape(-1, groupsize).to(torch.float32)
     
     scale_fp32     = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True) / FP4_MAX
-    shared_exp     = torch.ceil(
+    block_exp      = torch.ceil(
         torch.log2(
             scale_fp32 + FP32_MIN_NORMAL * (scale_fp32 == 0).type(scale_fp32.dtype)
         )
     ).clamp(min=-SCALE_EMAX, max=SCALE_EMAX)
-    block_scale_q  = 2**shared_exp
+    block_scale_q  = 2**block_exp
     w_s            = w_fp_new / block_scale_q
     
     ########## Normal FP4 quantization ##########
@@ -324,15 +373,15 @@ def quant_mxfp4_razer_new(w_fp, n_bits: int=4, groupsize: Optional[int]=None, is
     
     block_max      = torch.amax(w_fp_new.abs(), dim=-1, keepdim=True) 
     scale_fp32     = block_max / FP4_MAX
-    shared_exp     = torch.ceil(
+    block_exp      = torch.ceil(
         torch.log2(
             scale_fp32 + FP32_MIN_NORMAL * (scale_fp32 == 0).type(scale_fp32.dtype)
         )
     ).clamp(min=-SCALE_EMAX, max=SCALE_EMAX)
-    block_max_s    = block_max / 2**shared_exp
+    block_max_s    = block_max / 2**block_exp
     upscale_mask   = block_max_s.lt(3.5).squeeze() # If the scaled block maximum is smaller than 3.5, then upscale the whole block by 2
-    shared_exp[upscale_mask] -= 1
-    block_scale_q  = 2**shared_exp
+    block_exp[upscale_mask] -= 1
+    block_scale_q  = 2**block_exp
     w_s            = w_fp_new / block_scale_q
     
     ########## Normal FP4 quantization ##########
@@ -517,8 +566,7 @@ def quant_nvif4(w_fp, n_bits: int=4, groupsize: Optional[int]=None):
         torch.log2(
             torch.abs(w_scaled_fp4) + (w_scaled_fp4 == 0).type(w_scaled_fp4.dtype)
         )
-    )
-    private_exp = private_exp.clamp(min=0)
+    ).clamp(min=0)
     w_m_fp4     = w_scaled_fp4 / (2**private_exp) * (2**FP4_MAN_BITS)
     w_m_fp4     = torch.sign(w_m_fp4) * torch.floor(torch.abs(w_m_fp4) + 0.5)
     w_q_fp4     = w_m_fp4 * (2**private_exp) / (2**FP4_MAN_BITS)
@@ -683,6 +731,8 @@ def quant_weight(model, quant_config: QuantConfig):
         quant_func = quant_mxfp4_naive
     elif (w_dtype == "mxfp4"):
         quant_func  = quant_mxfp4
+    elif (w_dtype == "mxfp4_meta"):
+        quant_func  = quant_mxfp4_meta
     elif (w_dtype == "mxif4"):
         quant_func  = quant_mxif4
     elif (w_dtype == "mxfp4_razer"):
@@ -722,10 +772,12 @@ def quant_act(act, quant_config: QuantConfig):
     n_bits      = 4
     quant_func  = None
 
-    if (a_dtype == "mxfp4"):
-        quant_func = quant_mxfp4
-    elif (a_dtype == "mxfp4_naive"):
+    if (a_dtype == "mxfp4_naive"):
         quant_func = quant_mxfp4_naive
+    elif (a_dtype == "mxfp4"):
+        quant_func = quant_mxfp4
+    elif (a_dtype == "mxfp4_meta"):
+        quant_func  = quant_mxfp4_meta
     elif (a_dtype == "mxif4"):
         quant_func = quant_mxif4
     elif (a_dtype == "mxfp4_razer"):
